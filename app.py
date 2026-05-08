@@ -56,8 +56,13 @@ def get_creds():
             # Caso: El secreto es un diccionario/AttrDict (formato [gcp_service_account])
             creds_info = dict(creds_raw)
             if "private_key" in creds_info:
-                # Asegurar que los saltos de línea sean reales, no literales '\n'
-                creds_info["private_key"] = creds_info["private_key"].replace('\\n', '\n')
+                # Limpieza agresiva de la clave privada
+                pk = str(creds_info["private_key"])
+                # Reemplazar escapes dobles y simples
+                pk = pk.replace('\\\\n', '\n').replace('\\n', '\n')
+                # Eliminar espacios accidentales al inicio/final de cada línea si los hay
+                pk = pk.strip()
+                creds_info["private_key"] = pk
     
     elif "GCP_TYPE" in st.secrets:
         # Fallback para claves individuales
@@ -65,7 +70,7 @@ def get_creds():
             "type": st.secrets.get("GCP_TYPE"),
             "project_id": st.secrets.get("GCP_PROJECT_ID"),
             "private_key_id": st.secrets.get("GCP_PRIVATE_KEY_ID"),
-            "private_key": str(st.secrets.get("GCP_PRIVATE_KEY")).replace('\\n', '\n'),
+            "private_key": str(st.secrets.get("GCP_PRIVATE_KEY")).replace('\\\\n', '\n').replace('\\n', '\n').strip(),
             "client_email": st.secrets.get("GCP_CLIENT_EMAIL"),
             "client_id": st.secrets.get("GCP_CLIENT_ID"),
             "auth_uri": st.secrets.get("GCP_AUTH_URI"),
