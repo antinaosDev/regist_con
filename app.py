@@ -69,8 +69,9 @@ def get_creds():
                 # 2. Eliminar todo lo que no sea caracteres base64 válidos
                 body = re.sub(r'[^A-Za-z0-9+/=]', '', body)
                 
-                # 3. Reconstruir
-                return f"{header}\n{body}\n{footer}"
+                # 3. Reconstruir envolviendo en 64 caracteres (estándar estricto PEM)
+                wrapped_body = "\n".join(body[i:i+64] for i in range(0, len(body), 64))
+                return f"{header}\n{wrapped_body}\n{footer}"
             except Exception:
                 return pk.replace('\\\\n', '\n').replace('\\n', '\n')
         return pk.replace('\\\\n', '\n').replace('\\n', '\n')
