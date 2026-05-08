@@ -36,6 +36,12 @@ st.markdown(
 
 import re
 
+# --- CONFIGURACIÓN DE SEGURIDAD ---
+# Si decides incluir tus credenciales directamente en el código (Base64),
+# ten en cuenta que cualquier persona con acceso a este archivo podrá verlas.
+# Se recomienda usar Streamlit Secrets (GCP_JSON_B64) para producción.
+GCP_JSON_B64_INTERNAL = "ewogICJ0eXBlIjogInNlcnZpY2VfYWNjb3VudCIsCiAgInByb2plY3RfaWQiOiAibWV0cmljYXMtN2RhNGUiLAogICJwcml2YXRlX2tleV9pZCI6ICIzMDQxOTkxZTQ1OTg4MmFhNGVmNjc1MzMzMzU4N2U5ZTczMjNkODA0IiwKICAicHJpdmF0ZV9rZXkiOiAiLS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tXG5NSUlFdlFJQkFEQU5CZ2txaGtpRzl3MEJBUUVGQUFTQ0JLY3dnZ1NqQWdFQUFvSUJBUUMxYjgvRHF6WlBZYVpDXG5wdWY1eStyZERyandrUEEvdWVlcjBoUjBJZzB2U0htZUdTRVdUTFBWL3MzR09RMldHWkptaytIT3FiMjkwYld6XG42TWY1S1htOThDWGhCUmxyRzQ4T28rZWRiWml4TG9wOXVpelpEeWpPa0ZjNUZuUnhCdFBoeEVQSFlGYldQdTVVXG5QeWF1dDU0OWJVblJKSUhYNWhEeS9zZzFlbjFVQkhhOERIb0d0cHZtcnc4cDI2UzluekZtSk1sclBoVFlHTlF3XG5tNkEyUFJZajZGRWNMVzJURkhaSllYdW5RQmJGeHQ2dFRaOC94bzBWVFRSQTdtLzNyTmQ2VkNxMUE2Vi9CdEI4XG5CcGJqT0ZTV2dBUFEvL29RY2c0MzZ1QkkyMUZ4MExiMGs2ZG1NZm1vNGdHUUpFb0d4YzN2dDFtZElqcEt6aFpDXG5adUl3NS9MQkFnTUJBQUVDZ2dFQUZlbS9idHN3bDhWTU1vd2NnOVd1VTgwSnBwcG12ZGVhNUt4ZWhva3ZUUGprXG5vV1RaRTJ1bm82NmUxVFJDVVJEZEZ2RUE2bmdqUDdnQ2lVeFJ6S1RHL0pyeXhEcmNyMHc0aXJUZWppdTByNStXXG5uK2s2cmV1UUN1U3hlQ1pmWVdCSSttRTlLMmtXQzlHMWNLemc0K1N1NHEzZXBya1JTbzFSbWp1TjNER2pUZUI1XG5ES1BOWXozOVZLUDhzb0twR0lWcFlsR1BxZUM0R1Nyek9scm5MRXVuMmlaWDEyU0tYSHNZWVI0RXpiZHNMTk5vXG5tZytoMEVISy9Pa3hEbDVMUm9oSFE1S3N2ZHlkWVB1MlVOd01STlNrdUtDMHZTREduNlRMQXlXZi82L0xPeTJuXG5Kb1RYMFI1anNmbk5DM3lqb1lsVnppMTVmb25MRVI4M1pwTjB3L3V5TVFLQmdRRGZEejRibUhJakFpZlJQYWtGXG5VUFNtT2lkekNONlB6QTA0Q2RHN2lHN1JRUldmUjdVOFBoTHJhanM1WFVTYnVaNTdlNlI2RkZmUmUvazM2TzZJXG54dXFaMWhOSmVBY1VsMGRFQytoa25xazBTbmR5c3lGRjFreGhqMm0wSW8wU0gxRmZJb0x1M3BMekt2bXBLYkJLXG5KMElNVUV6RGVsQlJPTlhwV1c2U2grdWN1UUtCZ1FEUU93VisrVnhsTlQ3R2YyQ2lnZC9uYWVVcGNqZDY5YllSXG5MR2RvdUNreUU3WHZLeEFJZTQxQVFCZDVDNmlydlVlTE9pQitXWmNTZzE2a3lEL2phWGhGamQvVFdwMzQ1RWpkXG5uNnlTa21rZk5Hcm9zSkZLdUZHR3FGYWpIcmhOTHBXdVlVdDhEdkcxREtMQVd6VkdkcHEzZFdrUGtPV2FpNGN6XG5yemYvdWkxU1NRS0JnRitBTEN3dWNiZVJaYkROUUg5Wk1OVzJra3RMSWRiWkcxUEJ5SDBOSmIwTHE1RTlaMWY2XG5qNmtoRzJndENZSE8wQTY0V2l3MlozNzJJRGFTMFFYWWZIc096OFVsMFlvOFZyUElrVi83R2lDY1BWWHJZYlIvXG4wc1gyVytCVzVxVTZxV0VjNm9nUTNVT2xRNnpzZjJEUVBCUC9rVTRrSVIwVlEyaWI5SjVoK1R0cEFvR0FlaGdSXG5XZWttaHVWWWdKVVJlVmZEakhIbi80eE1BWm51L2xUVjhXNENJYTJ6QUtCMFR6VDZscEM5OHFpbVpzU2VIWUdnXG5qZFVvSXAvS3I3NEd6L1g0b25mVXBKMitnTUNDQlFqcDdDdFMzZ3dqSDNyZ1JqcWErdVRibjl1VVh4VVFpT1hkXG5sOGsvYWxRVlhjcGRDNHJobnU2R0FxMklJenpxc3FCcnFsTmszWmtDZ1lFQXNYVXpiYmRBcWhnTW9qK2xIYTFLXG5FaGxsMlFPSlQ0b0VCRVdtNFMxdFRNYWIyYkViQit1MzAvTGowTmJRUXNDalhqRkVVTWdjUXhJbEdwdFlXcUo4XG5rUkxUT0RCMDN2QXNDQXN0WmowaUt5cGxHWWJlQWVzTm9TdVBFdWlOb1M4SUFGd1hSQkIvNU11Vjhsc0xUdjU2XG5VekFIQzVSRmhNY0pLdHQxMEc2c1dmUT1cbi0tLS0tRU5EIFBSSVZBVEUgS0VZLS0tLS1cbiIsCiAgImNsaWVudF9lbWFpbCI6ICJlbmN1ZXN0YXNAbWV0cmljYXMtN2RhNGUuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLAogICJjbGllbnRfaWQiOiAiMTE3NzA4MjI0MjI1MjgzMjQ5MzM5IiwKICAiYXV0aF91cmkiOiAiaHR0cHM6Ly9hY2NvdW50cy5nb29nbGUuY29tL28vb2F1dGgyL2F1dGgiLAogICJ0b2tlbl91cmkiOiAiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLAogICJhdXRoX3Byb3ZpZGVyX3g1MDlfY2VydF91cmwiOiAiaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vb2F1dGgyL3YxL2NlcnRzIiwKICAiY2xpZW50X3g1MDlfY2VydF91cmwiOiAiaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vcm9ib3QvdjEvbWV0YWRhdGEveDUwOS9lbmN1ZXN0YXMlNDBtZXRyaWNhcy03ZGE0ZS5pYW0uZ3NlcnZpY2VhY2NvdW50LmNvbSIsCiAgInVuaXZlcnNlX2RvbWFpbiI6ICJnb29nbGVhcGlzLmNvbSIKfQo="
+
 def get_creds():
     """Obtiene credenciales desde GCP_JSON_B64 en Secrets o archivo local."""
     # 1. Intentar cargar desde archivo local (Desarrollo)
@@ -48,16 +54,25 @@ def get_creds():
     # 2. Intentar cargar desde st.secrets (Producción Cloud)
     creds_info = None
     
-    # Prioridad: Base64 (Evita truncamiento)
+    # Prioridad 1: Base64 en Secrets (Recomendado)
     if "GCP_JSON_B64" in st.secrets:
         try:
             decoded_json = base64.b64decode(st.secrets["GCP_JSON_B64"]).decode('utf-8')
             creds_info = json.loads(decoded_json)
         except Exception as e:
-            st.error(f"❌ Error decodificando GCP_JSON_B64: {e}")
+            st.error(f"❌ Error decodificando GCP_JSON_B64 de Secrets: {e}")
             st.stop()
             
-    # Fallback: JSON directo (si no es muy largo)
+    # Prioridad 2: Base64 en el código (¡Cuidado con la seguridad!)
+    elif GCP_JSON_B64_INTERNAL:
+        try:
+            decoded_json = base64.b64decode(GCP_JSON_B64_INTERNAL).decode('utf-8')
+            creds_info = json.loads(decoded_json)
+        except Exception as e:
+            st.error(f"❌ Error decodificando GCP_JSON_B64_INTERNAL: {e}")
+            st.stop()
+
+    # Prioridad 3: JSON directo (si no es muy largo)
     elif "gcp_service_account" in st.secrets:
         creds_raw = st.secrets["gcp_service_account"]
         if isinstance(creds_raw, str):
