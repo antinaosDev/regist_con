@@ -62,21 +62,14 @@ def get_creds():
                 if len(body_parts) < 1: return pk
                 body = body_parts[0]
                 
-                # 2. Eliminar todo lo que no sea caracteres base64 válidos (sin incluir el padding aún)
+                # 2. Eliminar todo lo que no sea caracteres base64 válidos
                 body = body.replace('\\\\n', '').replace('\\n', '')
                 body = re.sub(r'[^A-Za-z0-9+/]', '', body)
                 
-                # 3. Normalización Base64: decodificar y re-codificar para asegurar perfección matemática
-                try:
-                    import base64
-                    # Añadir padding suficiente para que b64decode no se queje
-                    decoded = base64.b64decode(body + "===")
-                    body = base64.b64encode(decoded).decode('ascii')
-                except Exception:
-                    # Fallback si falla la normalización: añadir padding manual al regex original
-                    missing_padding = len(body) % 4
-                    if missing_padding:
-                        body += '=' * (4 - missing_padding)
+                # 3. Corregir padding (añadir = si falta) sin alterar los bits internos
+                missing_padding = len(body) % 4
+                if missing_padding:
+                    body += '=' * (4 - missing_padding)
 
                 # 4. Reconstruir envolviendo en 64 caracteres (estándar estricto PEM)
                 wrapped_body = "\n".join(body[i:i+64] for i in range(0, len(body), 64))
