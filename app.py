@@ -145,7 +145,7 @@ def generate_pdf(context, safe_rut, safe_id):
 # ── Logo y Título ─────────────────────────────────────────────────────────────
 col_logo1, col_logo2, col_logo3 = st.columns([1, 1.5, 1])
 with col_logo2:
-    st.image("servicio de orientacion.png", use_container_width=True)
+    st.image("servicio de orientacion.png", width='stretch')
 
 st.markdown('<p class="titulo">FORMULARIO RESCATE PACIENTE</p>', unsafe_allow_html=True)
 st.markdown("---")
@@ -181,7 +181,7 @@ with st.expander("📂 Registros Guardados — Generar PDF desde un registro exi
                  "Paciente": safe(r,12), "RUT": safe(r,13), "Estado": safe(r,38) if len(r)>38 else ""}
                 for i, r in enumerate(rows)
             ])
-            st.dataframe(preview, use_container_width=True, hide_index=True)
+            st.dataframe(preview, width='stretch', hide_index=True)
 
             opciones = [f"{i+1} — {safe(r,12)} ({safe(r,13)}) [{safe(r,0)}]" for i, r in enumerate(rows)]
             seleccion = st.selectbox("Selecciona un registro para generar su PDF:", opciones)
@@ -263,7 +263,7 @@ with st.form("rescate_form"):
         id_reg = st.text_input("ID del Registro", key="id_reg", placeholder="Ej: RUT-RUP-001 (identificador único del caso)",
             help="Identificador interno del registro. Puede ser el RUT del paciente, número de RUP u otro código institucional."
         )
-        fecha_registro = st.date_input("Fecha del Registro", key="fecha_registro", value=datetime.date.today(),
+        fecha_registro = st.date_input("Fecha del Registro", key="fecha_registro", 
             help="Fecha en que se crea este registro de llamado telefónico."
         )
 
@@ -523,7 +523,7 @@ with st.form("rescate_form"):
     col38, col39 = st.columns([1, 1])
     with col38:
         submitted = st.form_submit_button(
-            "💾 GUARDAR", type="primary", use_container_width=True
+            "💾 GUARDAR", type="primary", width='stretch'
         )
     with col39:
         pass
