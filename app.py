@@ -42,14 +42,21 @@ def get_creds():
         # Intenta cargar desde Streamlit Secrets (debes configurar gcp_service_account en Streamlit Cloud)
         if "gcp_service_account" in st.secrets:
             # Streamlit Cloud can provide secrets as a dict or a string.
-            # If it's a string, we parse it. If it's already a dict, we use it.
             creds_raw = st.secrets["gcp_service_account"]
             if isinstance(creds_raw, str):
                 try:
-                    creds_info = json.loads(creds_raw, strict=False)
+                    # Limpieza manual de caracteres de escape problemáticos comunes en la private_key
+                    # A veces al pegar en Streamlit Secrets se escapan de más las barras invertidas
+                    processed_raw = creds_raw.replace('\\\\n', '\\n')
+                    creds_info = json.loads(processed_raw, strict=False)
                 except Exception as e:
-                    st.error(f"❌ Error al parsear JSON de credenciales: {e}")
-                    st.stop()
+                    # Segundo intento: si falló, probamos reemplazando \n literal por saltos de línea
+                    try:
+                        processed_raw = creds_raw.replace('\\n', '\n')
+                        creds_info = json.loads(processed_raw, strict=False)
+                    except Exception as e2:
+                        st.error(f"❌ Error al parsear JSON de credenciales: {e2}")
+                        st.stop()
             else:
                 creds_info = creds_raw
             return Credentials.from_service_account_info(creds_info, scopes=SCOPES)
