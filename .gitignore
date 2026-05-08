@@ -1,0 +1,20 @@
+# Credenciales y Secretos
+google_credentials.json
+.env
+
+# Archivos Generados
+pdfs_generados/
+*.docx
+*.pdf
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+ENV/
+
+# Streamlit
+.streamlit/
