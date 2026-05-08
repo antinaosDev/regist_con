@@ -72,58 +72,66 @@ def get_creds():
         return c1, c2
 
     creds_info = None
-    if "gcp_service_account" in st.secrets:
-        creds_raw = st.secrets["gcp_service_account"]
-        if isinstance(creds_raw, str):
-            try:
-                processed_raw = creds_raw.replace('\\\\n', '\\n').replace('\\n', '\n')
-                creds_info = json.loads(processed_raw, strict=False)
-            except Exception as e:
-                st.error(f"❌ Error en JSON gcp_service_account: {e}")
-                st.stop()
-        else:
-            creds_info = dict(creds_raw)
-    elif "GCP_TYPE" in st.secrets:
-        # Soporte para clave partida (failsafe contra límites de Streamlit)
-        pk_full = st.secrets.get("GCP_PRIVATE_KEY", "")
-        if not pk_full and "GCP_PRIVATE_KEY_PART1" in st.secrets:
-            pk_full = st.secrets.get("GCP_PRIVATE_KEY_PART1", "") + st.secrets.get("GCP_PRIVATE_KEY_PART2", "")
-            
-        creds_info = {
-            "type": st.secrets.get("GCP_TYPE"),
-            "project_id": st.secrets.get("GCP_PROJECT_ID"),
-            "private_key_id": st.secrets.get("GCP_PRIVATE_KEY_ID"),
-            "private_key": pk_full,
-            "client_email": st.secrets.get("GCP_CLIENT_EMAIL"),
-            "client_id": st.secrets.get("GCP_CLIENT_ID"),
-            "auth_uri": st.secrets.get("GCP_AUTH_URI"),
-            "token_uri": st.secrets.get("GCP_TOKEN_URI"),
-            "auth_provider_x509_cert_url": st.secrets.get("GCP_AUTH_PROVIDER_X509_CERT_URL"),
-            "client_x509_cert_url": st.secrets.get("GCP_CLIENT_X509_CERT_URL")
-        }
+    
+    # 1. Intentar cargar desde archivo local (Desarrollo)
+    if os.path.exists("google_credentials.json"):
+        try:
+            with open("google_credentials.json", "r") as f:
+                creds_info = json.load(f)
+        except Exception as e:
+            st.error(f"❌ Error al leer google_credentials.json: {e}")
+
+    # 2. Intentar cargar desde st.secrets (Producción Cloud)
+    if not creds_info:
+        if "gcp_service_account" in st.secrets:
+            creds_raw = st.secrets["gcp_service_account"]
+            if isinstance(creds_raw, str):
+                try:
+                    processed_raw = creds_raw.replace('\\\\n', '\\n').replace('\\n', '\n')
+                    creds_info = json.loads(processed_raw, strict=False)
+                except Exception as e:
+                    st.error(f"❌ Error en JSON gcp_service_account: {e}")
+                    st.stop()
+            else:
+                creds_info = dict(creds_raw)
+        elif "GCP_TYPE" in st.secrets:
+            # Soporte para clave partida (failsafe contra límites de Streamlit)
+            pk_full = st.secrets.get("GCP_PRIVATE_KEY", "")
+            if not pk_full and "GCP_PRIVATE_KEY_PART1" in st.secrets:
+                pk_full = st.secrets.get("GCP_PRIVATE_KEY_PART1", "") + st.secrets.get("GCP_PRIVATE_KEY_PART2", "")
+                
+            creds_info = {
+                "type": st.secrets.get("GCP_TYPE"),
+                "project_id": st.secrets.get("GCP_PROJECT_ID"),
+                "private_key_id": st.secrets.get("GCP_PRIVATE_KEY_ID"),
+                "private_key": pk_full,
+                "client_email": st.secrets.get("GCP_CLIENT_EMAIL"),
+                "client_id": st.secrets.get("GCP_CLIENT_ID"),
+                "auth_uri": st.secrets.get("GCP_AUTH_URI"),
+                "token_uri": st.secrets.get("GCP_TOKEN_URI"),
+                "auth_provider_x509_cert_url": st.secrets.get("GCP_AUTH_PROVIDER_X509_CERT_URL"),
+                "client_x509_cert_url": st.secrets.get("GCP_CLIENT_X509_CERT_URL")
+            }
 
     if creds_info:
         c1, c2 = clean_pem(creds_info.get("private_key", ""))
         
-        # Probar con c1
+        # Intentos de autenticación
         try:
             creds_info["private_key"] = c1
             return Credentials.from_service_account_info(creds_info, scopes=SCOPES)
         except Exception:
-            # Probar con c2 (radical)
             try:
                 creds_info["private_key"] = c2
                 return Credentials.from_service_account_info(creds_info, scopes=SCOPES)
             except Exception as e:
                 st.error(f"❌ Error de autenticación: {e}")
                 if "ASN.1" in str(e):
-                    # Mostrar diagnóstico de longitud para ayudar al usuario
                     body_len = len(re.sub(r'[^A-Za-z0-9+/]', '', str(creds_info.get("private_key", ""))))
-                    st.warning(f"⚠️ CLAVE TRUNCADA: Se detectaron {body_len} caracteres, pero se requieren ~1688.")
-                    st.info("💡 **Solución de emergencia:** Si el problema persiste, usa estos dos campos en Secrets:\n\n`GCP_PRIVATE_KEY_PART1 = '...'` (primera mitad)\n`GCP_PRIVATE_KEY_PART2 = '...'` (segunda mitad)")
+                    st.warning(f"⚠️ CLAVE TRUNCADA: Detectados {body_len} caracteres (~1688 requeridos).")
                 st.stop()
     else:
-        st.error("❌ No se encontraron credenciales.")
+        st.error("❌ No se encontraron credenciales (google_credentials.json o st.secrets).")
         st.stop()
 
 def fmt(val):
