@@ -34,18 +34,50 @@ st.markdown(
 
 # ── Funciones compartidas ──────────────────────────────────────────────────────
 
+import re
+
 def get_creds():
     """Obtiene credenciales desde archivo local o desde Streamlit Secrets (para la nube)."""
     if os.path.exists("google_credentials.json"):
-        return Credentials.from_service_account_file("google_credentials.json", scopes=SCOPES)
+        try:
+            return Credentials.from_service_account_file("google_credentials.json", scopes=SCOPES)
+        except Exception as e:
+            st.error(f"❌ Error con google_credentials.json local: {e}")
+            # Si falla el local, intentamos con secrets
     
     # Intenta cargar desde Streamlit Secrets
     creds_info = None
     
+    def clean_pem(pk):
+        """Limpia una clave PEM de forma ultra-robusta."""
+        pk = str(pk).strip()
+        if "-----BEGIN PRIVATE KEY-----" in pk:
+            header = "-----BEGIN PRIVATE KEY-----"
+            footer = "-----END PRIVATE KEY-----"
+            try:
+                # Extraer cuerpo
+                parts = pk.split(header)
+                if len(parts) < 2: return pk
+                body_parts = parts[1].split(footer)
+                if len(body_parts) < 1: return pk
+                body = body_parts[0]
+                
+                # 1. Eliminar escapes literales \n antes de cualquier otra cosa
+                # Importante: hacerlo antes del regex para que no quede la 'n' sola
+                body = body.replace('\\\\n', '').replace('\\n', '')
+                
+                # 2. Eliminar todo lo que no sea caracteres base64 válidos
+                body = re.sub(r'[^A-Za-z0-9+/=]', '', body)
+                
+                # 3. Reconstruir
+                return f"{header}\n{body}\n{footer}"
+            except Exception:
+                return pk.replace('\\\\n', '\n').replace('\\n', '\n')
+        return pk.replace('\\\\n', '\n').replace('\\n', '\n')
+
     if "gcp_service_account" in st.secrets:
         creds_raw = st.secrets["gcp_service_account"]
         if isinstance(creds_raw, str):
-            # Caso: El secreto es una cadena JSON
             try:
                 processed_raw = creds_raw.replace('\\\\n', '\\n').replace('\\n', '\n')
                 creds_info = json.loads(processed_raw, strict=False)
@@ -53,52 +85,18 @@ def get_creds():
                 st.error(f"❌ Error al parsear JSON de 'gcp_service_account': {e}")
                 st.stop()
         else:
-            # Caso: El secreto es un diccionario/AttrDict (formato [gcp_service_account])
             creds_info = dict(creds_raw)
-            if "private_key" in creds_info:
-                # Limpieza ultra-agresiva de la clave privada (PEM)
-                pk = str(creds_info["private_key"]).strip()
-                
-                # Si contiene encabezados PEM, limpiar el contenido interno
-                if "-----BEGIN PRIVATE KEY-----" in pk:
-                    header = "-----BEGIN PRIVATE KEY-----"
-                    footer = "-----END PRIVATE KEY-----"
-                    try:
-                        # Extraer el cuerpo entre el header y el footer
-                        body = pk.split(header)[1].split(footer)[0]
-                        # Remover absolutamente todo lo que no sea base64 (espacios, \n, \r, literal \n)
-                        body = body.replace('\\n', '').replace('\n', '').replace('\r', '').replace(' ', '').replace('\\\\n', '')
-                        # Reconstruir con el formato correcto
-                        pk = f"{header}\n{body}\n{footer}"
-                    except Exception:
-                        # Si falla el split, intentar limpieza estándar
-                        pk = pk.replace('\\\\n', '\n').replace('\\n', '\n')
-                else:
-                    # Si no tiene encabezados (raro), intentar limpieza estándar
-                    pk = pk.replace('\\\\n', '\n').replace('\\n', '\n')
-                
-                creds_info["private_key"] = pk.strip()
+            
+        if creds_info and "private_key" in creds_info:
+            creds_info["private_key"] = clean_pem(creds_info["private_key"])
     
     elif "GCP_TYPE" in st.secrets:
-        # Fallback para claves individuales
-        pk = str(st.secrets.get("GCP_PRIVATE_KEY", "")).strip()
-        if "-----BEGIN PRIVATE KEY-----" in pk:
-            header = "-----BEGIN PRIVATE KEY-----"
-            footer = "-----END PRIVATE KEY-----"
-            try:
-                body = pk.split(header)[1].split(footer)[0]
-                body = body.replace('\\n', '').replace('\n', '').replace('\r', '').replace(' ', '').replace('\\\\n', '')
-                pk = f"{header}\n{body}\n{footer}"
-            except Exception:
-                pk = pk.replace('\\\\n', '\n').replace('\\n', '\n')
-        else:
-            pk = pk.replace('\\\\n', '\n').replace('\\n', '\n')
-            
+        pk = clean_pem(st.secrets.get("GCP_PRIVATE_KEY", ""))
         creds_info = {
             "type": st.secrets.get("GCP_TYPE"),
             "project_id": st.secrets.get("GCP_PROJECT_ID"),
             "private_key_id": st.secrets.get("GCP_PRIVATE_KEY_ID"),
-            "private_key": pk.strip(),
+            "private_key": pk,
             "client_email": st.secrets.get("GCP_CLIENT_EMAIL"),
             "client_id": st.secrets.get("GCP_CLIENT_ID"),
             "auth_uri": st.secrets.get("GCP_AUTH_URI"),
@@ -114,7 +112,7 @@ def get_creds():
             st.error(f"❌ Error de autenticación: {e}")
             st.stop()
     else:
-        st.error("❌ No se encontraron las credenciales 'gcp_service_account' en st.secrets.")
+        st.error("❌ No se encontraron credenciales en Streamlit Secrets.")
         st.stop()
 
 def fmt(val):
