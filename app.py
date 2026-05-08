@@ -41,7 +41,17 @@ def get_creds():
     else:
         # Intenta cargar desde Streamlit Secrets (debes configurar gcp_service_account en Streamlit Cloud)
         if "gcp_service_account" in st.secrets:
-            creds_info = json.loads(st.secrets["gcp_service_account"])
+            # Streamlit Cloud can provide secrets as a dict or a string.
+            # If it's a string, we parse it. If it's already a dict, we use it.
+            creds_raw = st.secrets["gcp_service_account"]
+            if isinstance(creds_raw, str):
+                try:
+                    creds_info = json.loads(creds_raw, strict=False)
+                except Exception as e:
+                    st.error(f"❌ Error al parsear JSON de credenciales: {e}")
+                    st.stop()
+            else:
+                creds_info = creds_raw
             return Credentials.from_service_account_info(creds_info, scopes=SCOPES)
         else:
             st.error("❌ No se encontraron credenciales (google_credentials.json o st.secrets).")
@@ -529,8 +539,11 @@ with st.form("rescate_form"):
         pass
 
 if submitted:
+    # Si el ID está vacío, usar el RUT como código único
+    final_id = id_reg if id_reg.strip() else rut_paciente
+    
     row_data = [
-        fmt(id_reg), fmt(fecha_registro), fmt(motivo_contacto),
+        fmt(final_id), fmt(fecha_registro), fmt(motivo_contacto),
         fmt(fecha_llamado1), fmt(hora_llamada1),
         fmt(fecha_llamado2), fmt(hora_llamado2),
         fmt(telefono_paciente), fmt(telefono_alternativo),
@@ -557,7 +570,7 @@ if submitted:
 
         # Construir contexto PDF desde variables del formulario
         context = {
-            "id_reg": fmt(id_reg), "fecha_registro": fmt(fecha_registro),
+            "id_reg": fmt(final_id), "fecha_registro": fmt(fecha_registro),
             "motivo_contacto": fmt(motivo_contacto),
             "fecha_llamado1": fmt(fecha_llamado1), "hora_llamada1": fmt(hora_llamada1),
             "fecha_llamado2": fmt(fecha_llamado2), "hora_llamado2": fmt(hora_llamado2),
@@ -600,7 +613,7 @@ if submitted:
         }
 
         safe_rut = fmt(rut_paciente).replace(".", "").replace("-", "") or "s_rut"
-        safe_id  = fmt(id_reg) or "s_id"
+        safe_id  = fmt(final_id).replace(".", "").replace("-", "") or "s_id"
 
         with st.spinner("Generando PDF..."):
             pdf_bytes, err = generate_pdf(context, safe_rut, safe_id)
