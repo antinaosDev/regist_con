@@ -114,7 +114,8 @@ def get_creds():
                 if "ASN.1" in str(e):
                     # Mostrar diagnóstico de longitud para ayudar al usuario
                     body_len = len(re.sub(r'[^A-Za-z0-9+/]', '', str(creds_info.get("private_key", ""))))
-                    st.warning(f"⚠️ La clave parece estar incompleta. Longitud detectada: {body_len} caracteres. Una clave válida suele tener >1600 caracteres. Revisa tu panel de Secrets en Streamlit.")
+                    st.warning(f"⚠️ CLAVE TRUNCADA: Se detectaron {body_len} caracteres, pero se requieren aproximadamente 1688. ¡Faltan unos 38 caracteres al final!")
+                    st.info("💡 **Solución rápida:** En el panel de Secrets, asegúrate de que la clave termine en `-----END PRIVATE KEY-----`. Si usas el formato `GCP_PRIVATE_KEY = '...'`, prueba usando comillas triples: `GCP_PRIVATE_KEY = '''...'''` para evitar que se corte.")
                 st.stop()
     else:
         st.error("❌ No se encontraron credenciales.")
