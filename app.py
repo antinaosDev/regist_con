@@ -49,38 +49,27 @@ def get_creds():
     creds_info = None
     
     def clean_pem(pk):
-        """Limpia una clave PEM de forma ultra-robusta."""
-        pk = str(pk).strip()
-        if "-----BEGIN PRIVATE KEY-----" in pk:
-            header = "-----BEGIN PRIVATE KEY-----"
-            footer = "-----END PRIVATE KEY-----"
-            try:
-                # Extraer cuerpo
-                parts = pk.split(header)
-                if len(parts) < 2: return pk
-                body_parts = parts[1].split(footer)
-                if len(body_parts) < 1: return pk
-                body = body_parts[0]
-                
-                # 2. Limpieza TOTAL
-                body = pk.replace("-----BEGIN PRIVATE KEY-----", "").replace("-----END PRIVATE KEY-----", "")
-                body = body.replace('\\\\n', '').replace('\\n', '').replace('\\', '').replace('\n', '').replace('\r', '').replace(' ', '')
-                body = re.sub(r'[^A-Za-z0-9+/]', '', body)
-                
-                # 3. Corregir padding
-                missing_padding = len(body) % 4
-                if missing_padding:
-                    body += '=' * (4 - missing_padding)
-
-                # 4. Diagnóstico (visible para el usuario)
-                st.info(f"ℹ️ Longitud de clave detectada: {len(body)} caracteres (Base64).")
-
-                # 5. Reconstruir con wrap de 64 (Estándar PEM estricto)
-                wrapped_body = "\n".join(body[i:i+64] for i in range(0, len(body), 64))
-                return f"{header}\n{wrapped_body}\n{footer}\n"
-            except Exception:
-                return pk.replace('\\\\n', '\n').replace('\\n', '\n')
-        return pk.replace('\\\\n', '\n').replace('\\n', '\n')
+        """Limpia una clave PEM de forma ultra-robusta con múltiples intentos."""
+        pk = str(pk).strip().strip("'").strip('"')
+        header = "-----BEGIN PRIVATE KEY-----"
+        footer = "-----END PRIVATE KEY-----"
+        
+        # Intento 1: Solo normalizar saltos de línea (el más fiel)
+        candidate1 = pk.replace('\\\\n', '\n').replace('\\n', '\n')
+        if header not in candidate1:
+            candidate1 = f"{header}\n{candidate1}\n{footer}"
+        
+        # Intento 2: Limpieza profunda si el anterior falla (se activará en el bloque try de abajo)
+        # Pero por ahora preparamos una versión limpia por si acaso
+        body_clean = candidate1.replace(header, "").replace(footer, "")
+        body_clean = re.sub(r'[^A-Za-z0-9+/]', '', body_clean)
+        missing_padding = len(body_clean) % 4
+        if missing_padding:
+            body_clean += '=' * (4 - missing_padding)
+        wrapped_body = "\n".join(body_clean[i:i+64] for i in range(0, len(body_clean), 64))
+        candidate2 = f"{header}\n{wrapped_body}\n{footer}\n"
+        
+        return candidate1, candidate2
 
     if "gcp_service_account" in st.secrets:
         creds_raw = st.secrets["gcp_service_account"]
@@ -95,15 +84,18 @@ def get_creds():
             creds_info = dict(creds_raw)
             
         if creds_info and "private_key" in creds_info:
-            creds_info["private_key"] = clean_pem(creds_info["private_key"])
+            c1, c2 = clean_pem(creds_info["private_key"])
+            creds_info["private_key"] = c1 # Intentar primero la fiel
+            try:
+                return Credentials.from_service_account_info(creds_info, scopes=SCOPES)
+            except Exception:
+                creds_info["private_key"] = c2 # Si falla, usar la agresiva
     
     elif "GCP_TYPE" in st.secrets:
-        pk = clean_pem(st.secrets.get("GCP_PRIVATE_KEY", ""))
         creds_info = {
             "type": st.secrets.get("GCP_TYPE"),
             "project_id": st.secrets.get("GCP_PROJECT_ID"),
             "private_key_id": st.secrets.get("GCP_PRIVATE_KEY_ID"),
-            "private_key": pk,
             "client_email": st.secrets.get("GCP_CLIENT_EMAIL"),
             "client_id": st.secrets.get("GCP_CLIENT_ID"),
             "auth_uri": st.secrets.get("GCP_AUTH_URI"),
@@ -111,12 +103,20 @@ def get_creds():
             "auth_provider_x509_cert_url": st.secrets.get("GCP_AUTH_PROVIDER_X509_CERT_URL"),
             "client_x509_cert_url": st.secrets.get("GCP_CLIENT_X509_CERT_URL")
         }
+        c1, c2 = clean_pem(st.secrets.get("GCP_PRIVATE_KEY", ""))
+        creds_info["private_key"] = c1
+        try:
+            return Credentials.from_service_account_info(creds_info, scopes=SCOPES)
+        except Exception:
+            creds_info["private_key"] = c2
 
     if creds_info:
         try:
             return Credentials.from_service_account_info(creds_info, scopes=SCOPES)
         except Exception as e:
             st.error(f"❌ Error de autenticación: {e}")
+            if "ASN.1" in str(e):
+                st.warning("⚠️ El error 'ASN.1 short data' indica que la clave está incompleta. Por favor, asegúrate de haber copiado el bloque COMPLETO de la clave privada desde la consola de Google.")
             st.stop()
     else:
         st.error("❌ No se encontraron credenciales en Streamlit Secrets.")
