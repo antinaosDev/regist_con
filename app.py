@@ -38,31 +38,45 @@ def get_creds():
     """Obtiene credenciales desde archivo local o desde Streamlit Secrets (para la nube)."""
     if os.path.exists("google_credentials.json"):
         return Credentials.from_service_account_file("google_credentials.json", scopes=SCOPES)
-    else:
-        # Intenta cargar desde Streamlit Secrets (debes configurar gcp_service_account en Streamlit Cloud)
-        if "gcp_service_account" in st.secrets:
-            # Streamlit Cloud can provide secrets as a dict or a string.
-            creds_raw = st.secrets["gcp_service_account"]
-            if isinstance(creds_raw, str):
-                try:
-                    # Limpieza manual de caracteres de escape problemáticos comunes en la private_key
-                    # A veces al pegar en Streamlit Secrets se escapan de más las barras invertidas
-                    processed_raw = creds_raw.replace('\\\\n', '\\n')
-                    creds_info = json.loads(processed_raw, strict=False)
-                except Exception as e:
-                    # Segundo intento: si falló, probamos reemplazando \n literal por saltos de línea
-                    try:
-                        processed_raw = creds_raw.replace('\\n', '\n')
-                        creds_info = json.loads(processed_raw, strict=False)
-                    except Exception as e2:
-                        st.error(f"❌ Error al parsear JSON de credenciales: {e2}")
-                        st.stop()
-            else:
-                creds_info = creds_raw
-            return Credentials.from_service_account_info(creds_info, scopes=SCOPES)
+    
+    # Intenta cargar desde Streamlit Secrets (individual keys fallback)
+    creds_info = None
+    
+    if "gcp_service_account" in st.secrets:
+        creds_raw = st.secrets["gcp_service_account"]
+        if isinstance(creds_raw, str):
+            try:
+                processed_raw = creds_raw.replace('\\\\n', '\\n').replace('\\n', '\n')
+                creds_info = json.loads(processed_raw, strict=False)
+            except Exception as e:
+                st.error(f"❌ Error al parsear JSON de 'gcp_service_account': {e}")
+                st.stop()
         else:
-            st.error("❌ No se encontraron credenciales (google_credentials.json o st.secrets).")
+            creds_info = creds_raw
+    elif "GCP_TYPE" in st.secrets:
+        # Fallback para claves individuales (más fácil de pegar en Streamlit Cloud)
+        creds_info = {
+            "type": st.secrets.get("GCP_TYPE"),
+            "project_id": st.secrets.get("GCP_PROJECT_ID"),
+            "private_key_id": st.secrets.get("GCP_PRIVATE_KEY_ID"),
+            "private_key": st.secrets.get("GCP_PRIVATE_KEY").replace('\\n', '\n'),
+            "client_email": st.secrets.get("GCP_CLIENT_EMAIL"),
+            "client_id": st.secrets.get("GCP_CLIENT_ID"),
+            "auth_uri": st.secrets.get("GCP_AUTH_URI"),
+            "token_uri": st.secrets.get("GCP_TOKEN_URI"),
+            "auth_provider_x509_cert_url": st.secrets.get("GCP_AUTH_PROVIDER_X509_CERT_URL"),
+            "client_x509_cert_url": st.secrets.get("GCP_CLIENT_X509_CERT_URL")
+        }
+
+    if creds_info:
+        try:
+            return Credentials.from_service_account_info(creds_info, scopes=SCOPES)
+        except Exception as e:
+            st.error(f"❌ Error al crear credenciales desde info: {e}")
             st.stop()
+    else:
+        st.error("❌ No se encontraron credenciales. Asegúrate de configurar 'gcp_service_account' o las claves 'GCP_*' en Streamlit Secrets.")
+        st.stop()
 
 def fmt(val):
     if val is None:
