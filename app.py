@@ -62,20 +62,22 @@ def get_creds():
                 if len(body_parts) < 1: return pk
                 body = body_parts[0]
                 
-                # 2. Limpieza TOTAL: Quitar encabezados, escapes, barras, espacios y saltos
+                # 2. Limpieza TOTAL
                 body = pk.replace("-----BEGIN PRIVATE KEY-----", "").replace("-----END PRIVATE KEY-----", "")
                 body = body.replace('\\\\n', '').replace('\\n', '').replace('\\', '').replace('\n', '').replace('\r', '').replace(' ', '')
-                
-                # 3. Solo permitir caracteres Base64 puros
                 body = re.sub(r'[^A-Za-z0-9+/]', '', body)
                 
-                # 4. Corregir padding
+                # 3. Corregir padding
                 missing_padding = len(body) % 4
                 if missing_padding:
                     body += '=' * (4 - missing_padding)
 
-                # 5. Reconstruir (Probamos una sola línea para el cuerpo por si el wrap de 64 fallaba)
-                return f"{header}\n{body}\n{footer}"
+                # 4. Diagnóstico (visible para el usuario)
+                st.info(f"ℹ️ Longitud de clave detectada: {len(body)} caracteres (Base64).")
+
+                # 5. Reconstruir con wrap de 64 (Estándar PEM estricto)
+                wrapped_body = "\n".join(body[i:i+64] for i in range(0, len(body), 64))
+                return f"{header}\n{wrapped_body}\n{footer}\n"
             except Exception:
                 return pk.replace('\\\\n', '\n').replace('\\n', '\n')
         return pk.replace('\\\\n', '\n').replace('\\n', '\n')
