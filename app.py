@@ -84,11 +84,16 @@ def get_creds():
         else:
             creds_info = dict(creds_raw)
     elif "GCP_TYPE" in st.secrets:
+        # Soporte para clave partida (failsafe contra límites de Streamlit)
+        pk_full = st.secrets.get("GCP_PRIVATE_KEY", "")
+        if not pk_full and "GCP_PRIVATE_KEY_PART1" in st.secrets:
+            pk_full = st.secrets.get("GCP_PRIVATE_KEY_PART1", "") + st.secrets.get("GCP_PRIVATE_KEY_PART2", "")
+            
         creds_info = {
             "type": st.secrets.get("GCP_TYPE"),
             "project_id": st.secrets.get("GCP_PROJECT_ID"),
             "private_key_id": st.secrets.get("GCP_PRIVATE_KEY_ID"),
-            "private_key": st.secrets.get("GCP_PRIVATE_KEY"),
+            "private_key": pk_full,
             "client_email": st.secrets.get("GCP_CLIENT_EMAIL"),
             "client_id": st.secrets.get("GCP_CLIENT_ID"),
             "auth_uri": st.secrets.get("GCP_AUTH_URI"),
@@ -114,8 +119,8 @@ def get_creds():
                 if "ASN.1" in str(e):
                     # Mostrar diagnóstico de longitud para ayudar al usuario
                     body_len = len(re.sub(r'[^A-Za-z0-9+/]', '', str(creds_info.get("private_key", ""))))
-                    st.warning(f"⚠️ CLAVE TRUNCADA: Se detectaron {body_len} caracteres, pero se requieren aproximadamente 1688. ¡Faltan unos 38 caracteres al final!")
-                    st.info("💡 **Solución rápida:** En el panel de Secrets, asegúrate de que la clave termine en `-----END PRIVATE KEY-----`. Si usas el formato `GCP_PRIVATE_KEY = '...'`, prueba usando comillas triples: `GCP_PRIVATE_KEY = '''...'''` para evitar que se corte.")
+                    st.warning(f"⚠️ CLAVE TRUNCADA: Se detectaron {body_len} caracteres, pero se requieren ~1688.")
+                    st.info("💡 **Solución de emergencia:** Si el problema persiste, usa estos dos campos en Secrets:\n\n`GCP_PRIVATE_KEY_PART1 = '...'` (primera mitad)\n`GCP_PRIVATE_KEY_PART2 = '...'` (segunda mitad)")
                 st.stop()
     else:
         st.error("❌ No se encontraron credenciales.")
