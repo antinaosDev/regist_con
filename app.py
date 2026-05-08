@@ -56,21 +56,49 @@ def get_creds():
             # Caso: El secreto es un diccionario/AttrDict (formato [gcp_service_account])
             creds_info = dict(creds_raw)
             if "private_key" in creds_info:
-                # Limpieza agresiva de la clave privada
-                pk = str(creds_info["private_key"])
-                # Reemplazar escapes dobles y simples
-                pk = pk.replace('\\\\n', '\n').replace('\\n', '\n')
-                # Eliminar espacios accidentales al inicio/final de cada línea si los hay
-                pk = pk.strip()
-                creds_info["private_key"] = pk
+                # Limpieza ultra-agresiva de la clave privada (PEM)
+                pk = str(creds_info["private_key"]).strip()
+                
+                # Si contiene encabezados PEM, limpiar el contenido interno
+                if "-----BEGIN PRIVATE KEY-----" in pk:
+                    header = "-----BEGIN PRIVATE KEY-----"
+                    footer = "-----END PRIVATE KEY-----"
+                    try:
+                        # Extraer el cuerpo entre el header y el footer
+                        body = pk.split(header)[1].split(footer)[0]
+                        # Remover absolutamente todo lo que no sea base64 (espacios, \n, \r, literal \n)
+                        body = body.replace('\\n', '').replace('\n', '').replace('\r', '').replace(' ', '').replace('\\\\n', '')
+                        # Reconstruir con el formato correcto
+                        pk = f"{header}\n{body}\n{footer}"
+                    except Exception:
+                        # Si falla el split, intentar limpieza estándar
+                        pk = pk.replace('\\\\n', '\n').replace('\\n', '\n')
+                else:
+                    # Si no tiene encabezados (raro), intentar limpieza estándar
+                    pk = pk.replace('\\\\n', '\n').replace('\\n', '\n')
+                
+                creds_info["private_key"] = pk.strip()
     
     elif "GCP_TYPE" in st.secrets:
         # Fallback para claves individuales
+        pk = str(st.secrets.get("GCP_PRIVATE_KEY", "")).strip()
+        if "-----BEGIN PRIVATE KEY-----" in pk:
+            header = "-----BEGIN PRIVATE KEY-----"
+            footer = "-----END PRIVATE KEY-----"
+            try:
+                body = pk.split(header)[1].split(footer)[0]
+                body = body.replace('\\n', '').replace('\n', '').replace('\r', '').replace(' ', '').replace('\\\\n', '')
+                pk = f"{header}\n{body}\n{footer}"
+            except Exception:
+                pk = pk.replace('\\\\n', '\n').replace('\\n', '\n')
+        else:
+            pk = pk.replace('\\\\n', '\n').replace('\\n', '\n')
+            
         creds_info = {
             "type": st.secrets.get("GCP_TYPE"),
             "project_id": st.secrets.get("GCP_PROJECT_ID"),
             "private_key_id": st.secrets.get("GCP_PRIVATE_KEY_ID"),
-            "private_key": str(st.secrets.get("GCP_PRIVATE_KEY")).replace('\\\\n', '\n').replace('\\n', '\n').strip(),
+            "private_key": pk.strip(),
             "client_email": st.secrets.get("GCP_CLIENT_EMAIL"),
             "client_id": st.secrets.get("GCP_CLIENT_ID"),
             "auth_uri": st.secrets.get("GCP_AUTH_URI"),
