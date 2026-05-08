@@ -104,11 +104,23 @@ def build_context_from_row(row):
 
 def generate_pdf(context, safe_rut, safe_id):
     """Genera el PDF desde la plantilla y devuelve (pdf_bytes, error)."""
+    import base64
     from docxtpl import DocxTemplate
     from docx2pdf import convert
 
-    if not os.path.exists("PROTOCOLO_TEMPLATE.docx"):
-        return None, "No se encontró PROTOCOLO_TEMPLATE.docx"
+    template_name = "PROTOCOLO_TEMPLATE.docx"
+
+    # Si el archivo no existe localmente, intenta recuperarlo de los secretos
+    if not os.path.exists(template_name):
+        if "word_template" in st.secrets:
+            try:
+                template_data = base64.b64decode(st.secrets["word_template"])
+                with open(template_name, "wb") as f:
+                    f.write(template_data)
+            except Exception as e:
+                return None, f"Error al decodificar la plantilla desde secretos: {e}"
+        else:
+            return None, "No se encontró la plantilla (archivo o secreto)."
 
     if not os.path.exists("pdfs_generados"):
         os.makedirs("pdfs_generados")
@@ -116,14 +128,13 @@ def generate_pdf(context, safe_rut, safe_id):
     docx_path = f"pdfs_generados/Protocolo_{safe_rut}_{safe_id}.docx"
     pdf_path  = f"pdfs_generados/Protocolo_{safe_rut}_{safe_id}.pdf"
 
-    doc = DocxTemplate("PROTOCOLO_TEMPLATE.docx")
-    doc.render(context)
-    doc.save(docx_path)
-
     try:
+        doc = DocxTemplate(template_name)
+        doc.render(context)
+        doc.save(docx_path)
         convert(docx_path, pdf_path)
     except Exception as e:
-        return None, f"Conversión a PDF falló: {e}"
+        return None, f"Error en generación/conversión: {e}"
 
     with open(pdf_path, "rb") as f:
         pdf_bytes = f.read()
@@ -134,7 +145,7 @@ def generate_pdf(context, safe_rut, safe_id):
 # ── Logo y Título ─────────────────────────────────────────────────────────────
 col_logo1, col_logo2, col_logo3 = st.columns([1, 1.5, 1])
 with col_logo2:
-    st.image(r"D:\PROYECTOS PROGRAMACIÓN\ANTIGRAVITY_PROJECTS\rescate_paciente\servicio de orientacion.png", use_container_width=True)
+    st.image("servicio de orientacion.png", use_container_width=True)
 
 st.markdown('<p class="titulo">FORMULARIO RESCATE PACIENTE</p>', unsafe_allow_html=True)
 st.markdown("---")
