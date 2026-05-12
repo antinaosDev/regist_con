@@ -120,7 +120,7 @@ def build_context_from_row(row):
     motivo_tipo = g(38) if len(row) > 38 else ""  # columna extra si existe
     return {
         "id_reg": g(0), "fecha_registro": g(1), "motivo_contacto": g(2),
-        "fecha_llamado1": g(3), "hora_llamada1": g(4),
+        "fecha_llamado1": g(3), "hora_llamado1": g(4),
         "fecha_llamado2": g(5), "hora_llamado2": g(6),
         "telefono_paciente": g(7), "telefono_alternativo": g(8),
         "chk_inubicable": chk(g(9)),
@@ -637,8 +637,12 @@ if submitted:
         context = {
             "id_reg": fmt(final_id), "fecha_registro": fmt(fecha_registro),
             "motivo_contacto": fmt(motivo_contacto),
-            "fecha_llamado1": fmt(fecha_llamado1), "hora_llamado1": fmt(hora_llamado1),
-            "fecha_llamado2": fmt(fecha_llamado2), "hora_llamado2": fmt(hora_llamado2),
+            "fecha_llamado1": fmt(fecha_llamado1), 
+            "hora_llamado1": fmt(hora_llamado1),
+            "hora_llamada1": fmt(hora_llamado1), # Compatibilidad con etiquetas antiguas en template
+            "fecha_llamado2": fmt(fecha_llamado2), 
+            "hora_llamado2": fmt(hora_llamado2),
+            "hora_llamada2": fmt(hora_llamado2), # Compatibilidad con etiquetas antiguas en template
             "telefono_paciente": fmt(telefono_paciente),
             "telefono_alternativo": fmt(telefono_alternativo),
             "chk_inubicable": chk(paciente_inubicable),
