@@ -5,6 +5,10 @@ import json
 import gspread
 import base64
 from google.oauth2.service_account import Credentials
+try:
+    from word import word_template as WORD_TEMPLATE_B64
+except ImportError:
+    WORD_TEMPLATE_B64 = None
 
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1dDzr41dkiZHZPtESipMmke2Zqg9bD5aFGeReDG9U4rg/edit"
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
@@ -40,27 +44,48 @@ import re
 # --- CONFIGURACIÓN DE SEGURIDAD ---
 
 def get_creds():
-    """Obtiene credenciales desde GCP_JSON_B64 en Secrets o archivo local."""
-    # 1. Intentar cargar desde archivo local (Desarrollo)
+    """Obtiene credenciales GCP desde varias fuentes en orden de prioridad."""
+    # 1. Archivo local (Desarrollo)
     if os.path.exists("google_credentials.json"):
         try:
             return Credentials.from_service_account_file("google_credentials.json", scopes=SCOPES)
         except Exception as e:
             st.error(f"❌ Error con google_credentials.json local: {e}")
 
-    # 2. Intentar cargar desde st.secrets (Producción Cloud)
     creds_info = None
-    
-    # Prioridad 1: Base64 en Secrets (Recomendado)
-    if "GCP_JSON_B64" in st.secrets:
+
+    # 2. Campos individuales en Secrets (GCP_TYPE, GCP_PROJECT_ID, etc.)
+    if "GCP_TYPE" in st.secrets:
+        try:
+            private_key = st.secrets["GCP_PRIVATE_KEY"]
+            # Normalizar saltos de línea de la clave privada
+            private_key = private_key.replace("\\n", "\n")
+            creds_info = {
+                "type": st.secrets["GCP_TYPE"],
+                "project_id": st.secrets["GCP_PROJECT_ID"],
+                "private_key_id": st.secrets["GCP_PRIVATE_KEY_ID"],
+                "private_key": private_key,
+                "client_email": st.secrets["GCP_CLIENT_EMAIL"],
+                "client_id": st.secrets["GCP_CLIENT_ID"],
+                "auth_uri": st.secrets["GCP_AUTH_URI"],
+                "token_uri": st.secrets["GCP_TOKEN_URI"],
+                "auth_provider_x509_cert_url": st.secrets["GCP_AUTH_PROVIDER_X509_CERT_URL"],
+                "client_x509_cert_url": st.secrets["GCP_CLIENT_X509_CERT_URL"],
+            }
+        except Exception as e:
+            st.error(f"❌ Error leyendo campos GCP de Secrets: {e}")
+            st.stop()
+
+    # 3. Base64 completo en Secrets
+    elif "GCP_JSON_B64" in st.secrets:
         try:
             decoded_json = base64.b64decode(st.secrets["GCP_JSON_B64"]).decode('utf-8')
             creds_info = json.loads(decoded_json)
         except Exception as e:
             st.error(f"❌ Error decodificando GCP_JSON_B64 de Secrets: {e}")
             st.stop()
-            
-    # Prioridad 2: JSON directo (si no es muy largo)
+
+    # 4. JSON como sección TOML en Secrets
     elif "gcp_service_account" in st.secrets:
         creds_raw = st.secrets["gcp_service_account"]
         if isinstance(creds_raw, str):
@@ -74,7 +99,7 @@ def get_creds():
 
     if creds_info:
         try:
-            # Normalizar la clave privada por si acaso
+            # Asegurar que la clave privada tenga saltos de línea correctos
             pk = creds_info.get("private_key", "")
             if "\\n" in pk:
                 creds_info["private_key"] = pk.replace("\\n", "\n")
@@ -83,7 +108,7 @@ def get_creds():
             st.error(f"❌ Error de autenticación: {e}")
             st.stop()
     else:
-        st.error("❌ No se encontraron credenciales. Configura 'GCP_JSON_B64' en los Secrets de Streamlit.")
+        st.error("❌ No se encontraron credenciales. Configura los campos GCP_* en los Secrets de Streamlit.")
         st.stop()
 
 
