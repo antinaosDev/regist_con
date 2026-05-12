@@ -260,50 +260,6 @@ with st.expander("📂 Registros Guardados — Generar PDF desde un registro exi
         else:
             st.info("No hay registros en la hoja.")
 
-st.markdown("---")
-
-if st.button("🧪 Generar Datos de Prueba"):
-    import datetime
-    st.session_state.id_reg = "TEST-12345"
-    st.session_state.fecha_registro = datetime.date.today()
-    st.session_state.motivo_contacto = "Motivo de prueba generado automáticamente"
-    st.session_state.fecha_llamado1 = datetime.date.today()
-    st.session_state.hora_llamada1 = datetime.datetime.now().time()
-    st.session_state.fecha_llamado2 = datetime.date.today()
-    st.session_state.hora_llamado2 = datetime.datetime.now().time()
-    st.session_state.telefono_paciente = "+56912345678"
-    st.session_state.telefono_alternativo = "+56987654321"
-    st.session_state.paciente_inubicable = False
-    st.session_state.responsable_llamado = "Juan Pérez"
-    st.session_state.centro_salud = "CESFAM Centro"
-    st.session_state.nombre_paciente = "María González"
-    st.session_state.rut_paciente = "12.345.678-9"
-    st.session_state.sabe_ubicar = True
-    st.session_state.direccion = "Av. Principal 123, Depto 4B, Santiago"
-    st.session_state.nombre_contacto = "Pedro González"
-    st.session_state.nombre_receptor = "Laura Smith"
-    st.session_state.relacion_paciente = "Hijo"
-    st.session_state.tipo_espera = "Consultas Especialidades"
-    st.session_state.policlinico = "Cardiología"
-    st.session_state.diagnostico = "Hipertensión Arterial en tratamiento"
-    st.session_state.problema_resuelto = True
-    st.session_state.ya_atendido = False
-    st.session_state.paciente_en_espera = False
-    st.session_state.causal_egreso = 1
-    st.session_state.descripcion_causal = "Atención realizada de forma exitosa"
-    st.session_state.prestador = "Hospital Regional"
-    st.session_state.fecha_atencion = datetime.date.today()
-    st.session_state.cambio_asegurador = False
-    st.session_state.recuperacion_espontanea = False
-    st.session_state.renuncia_rechazo = False
-    st.session_state.inasistencias = False
-    st.session_state.posterga_cirugia = False
-    st.session_state.fallecimiento = False
-    st.session_state.observaciones = "Sin observaciones adicionales. (Datos de prueba)"
-    st.session_state.firma_resp_contacto = "Juan Pérez"
-    st.session_state.firma_resp_gestion = "Dr. Silva"
-    st.session_state.motivo_contacto_tipo = "Confirmación de Cita"
-    st.session_state.estado_gestion = "Resuelto"
 
 # --- NOTA ORIENTATIVA GENERAL ---
 st.info("""
