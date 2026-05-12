@@ -610,7 +610,7 @@ if submitted:
     row_data = [
         fmt(final_id), fmt(fecha_registro), fmt(motivo_contacto),
         fmt(fecha_llamado1), fmt(hora_llamado1),
-        fmt(fecha_llamado2), fmt(hora_llamada2),
+        fmt(fecha_llamado2), fmt(hora_llamado2),
         fmt(telefono_paciente), fmt(telefono_alternativo),
         fmt(paciente_inubicable), fmt(responsable_llamado), fmt(centro_salud),
         fmt(nombre_paciente), fmt(rut_paciente_input), fmt(sabe_ubicar),
