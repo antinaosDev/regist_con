@@ -117,7 +117,7 @@ def build_context_from_row(row):
     def g(i): return row[i] if i < len(row) else ""
     causal = g(25)
     tipo_espera = g(19)
-    motivo_tipo = g(38) if len(row) > 38 else ""  # columna extra si existe
+    motivo_tipo = g(39) if len(row) > 39 else ""
     return {
         "id_reg": g(0), "fecha_registro": g(1), "motivo_contacto": g(2),
         "fecha_llamado1": g(3), "hora_llamado1": g(4),
@@ -130,8 +130,8 @@ def build_context_from_row(row):
         "nombre_contacto": g(16), "nombre_receptor": g(17),
         "relacion_paciente": g(18),
         "tipo_espera": tipo_espera,
-        "chk_ambulatoria": chk(g(38) == "Confirmación de Cita"),
-        "chk_hospitalaria": chk(g(38) == "Gestión de LE"),
+        "chk_ambulatoria": chk(g(39) == "Confirmación de Cita"),
+        "chk_hospitalaria": chk(g(39) == "Gestión de LE"),
         "chk_especialidades": chk(tipo_espera == "Consultas Especialidades"),
         "chk_quirurgica": chk(tipo_espera == "Intervención Quirúrgica"),
         "chk_procedimientos": chk(tipo_espera == "Procedimientos"),
@@ -149,6 +149,7 @@ def build_context_from_row(row):
         "chk_posterga_cirugia": chk(g(33)), "chk_fallecimiento": chk(g(34)),
         "observaciones": g(35), "firma_resp_contacto": g(36),
         "firma_resp_gestion": g(37), "estado_gestion": g(38) if len(row) > 38 else "",
+        "motivo_tipo": g(39) if len(row) > 39 else ""
     }
 
 # --- VARIABLE PARA PLANTILLA INTEGRADA ---
@@ -577,8 +578,8 @@ if submitted:
         fmt(prestador), fmt(fecha_atencion), fmt(cambio_asegurador),
         fmt(recuperacion_espontanea), fmt(renuncia_rechazo), fmt(inasistencias),
         fmt(posterga_cirugia), fmt(fallecimiento), fmt(observaciones),
-        fmt(firma_resp_contacto), fmt(firma_resp_gestion), fmt(motivo_contacto_tipo),
-        fmt(estado_gestion)
+        fmt(firma_resp_contacto), fmt(firma_resp_gestion), fmt(estado_gestion),
+        fmt(motivo_contacto_tipo)
     ]
 
     try:
