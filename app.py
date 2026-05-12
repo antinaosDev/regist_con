@@ -43,47 +43,8 @@ import re
 
 # --- CONFIGURACIÓN DE SEGURIDAD ---
 
-def fix_pem_key(key_str):
-    """
-    Reconstruye una clave privada PEM con exactamente 64 caracteres por línea.
-    Extrae solo el contenido Base64 puro para evitar errores de formato.
-    """
-    if not key_str:
-        return key_str
-    
-    # 1. Normalizar saltos de línea literales
-    key_str = key_str.replace("\\r\\n", "\n").replace("\\n", "\n")
-    
-    # 2. Extraer solo el contenido entre cabeceras o ignorar metadatos
-    # Buscamos líneas que no sean cabeceras, comentarios ni estén vacías
-    lines = key_str.split("\n")
-    raw_content = ""
-    for line in lines:
-        l = line.strip()
-        if not l or "BEGIN" in l or "END" in l or l.startswith("#") or "=" in l[:5]:
-            continue
-        raw_content += l
-
-    # 3. Limpiar cualquier carácter que no sea Base64 (por si acaso)
-    # Base64: A-Z, a-z, 0-9, +, /, y el padding =
-    b64_only = "".join(re.findall(r'[A-Za-z0-9+/]+', raw_content))
-    
-    # 4. Añadir el padding '=' necesario al final si falta
-    # (Aunque en PEM suele venir incluido, lo aseguramos)
-    padding = len(b64_only) % 4
-    if padding > 0:
-        b64_only += "=" * (4 - padding)
-
-    # 5. Reenvolver en líneas de 64 caracteres
-    HEADER = "-----BEGIN PRIVATE KEY-----"
-    FOOTER = "-----END PRIVATE KEY-----"
-    chunks = [b64_only[i:i+64] for i in range(0, len(b64_only), 64)]
-    
-    return HEADER + "\n" + "\n".join(chunks) + "\n" + FOOTER + "\n"
-
 def get_creds():
-
-    """Obtiene credenciales GCP desde varias fuentes en orden de prioridad."""
+    """Obtiene credenciales GCP desde st.secrets o archivo local."""
     # 1. Archivo local (Desarrollo)
     if os.path.exists("google_credentials.json"):
         try:
@@ -93,15 +54,26 @@ def get_creds():
 
     creds_info = None
 
-    # 2. Campos individuales en Secrets (GCP_TYPE, GCP_PROJECT_ID, etc.)
-    if "GCP_TYPE" in st.secrets:
+    # 2. PRIORIDAD: Base64 completo en Secrets (El método más robusto)
+    if "GCP_JSON_B64" in st.secrets:
         try:
-            private_key = fix_pem_key(st.secrets["GCP_PRIVATE_KEY"])
+            decoded_json = base64.b64decode(st.secrets["GCP_JSON_B64"]).decode('utf-8')
+            creds_info = json.loads(decoded_json)
+        except Exception as e:
+            st.error(f"❌ Error decodificando GCP_JSON_B64: {e}")
+            st.stop()
+
+    # 3. Alternativa: Campos individuales
+    elif "GCP_TYPE" in st.secrets:
+        try:
+            pk = st.secrets["GCP_PRIVATE_KEY"]
+            # Solo limpieza básica de saltos de línea literales
+            pk = pk.replace("\\n", "\n").replace("\\r", "")
             creds_info = {
                 "type": st.secrets["GCP_TYPE"],
                 "project_id": st.secrets["GCP_PROJECT_ID"],
                 "private_key_id": st.secrets["GCP_PRIVATE_KEY_ID"],
-                "private_key": private_key,
+                "private_key": pk,
                 "client_email": st.secrets["GCP_CLIENT_EMAIL"],
                 "client_id": st.secrets["GCP_CLIENT_ID"],
                 "auth_uri": st.secrets["GCP_AUTH_URI"],
@@ -110,41 +82,17 @@ def get_creds():
                 "client_x509_cert_url": st.secrets["GCP_CLIENT_X509_CERT_URL"],
             }
         except Exception as e:
-            st.error(f"❌ Error leyendo campos GCP de Secrets: {e}")
+            st.error(f"❌ Error leyendo campos GCP: {e}")
             st.stop()
-
-    # 3. Base64 completo en Secrets
-    elif "GCP_JSON_B64" in st.secrets:
-        try:
-            decoded_json = base64.b64decode(st.secrets["GCP_JSON_B64"]).decode('utf-8')
-            creds_info = json.loads(decoded_json)
-        except Exception as e:
-            st.error(f"❌ Error decodificando GCP_JSON_B64 de Secrets: {e}")
-            st.stop()
-
-    # 4. JSON como sección TOML en Secrets
-    elif "gcp_service_account" in st.secrets:
-        creds_raw = st.secrets["gcp_service_account"]
-        if isinstance(creds_raw, str):
-            try:
-                creds_info = json.loads(creds_raw.replace('\\\\n', '\\n').replace('\\n', '\n'))
-            except Exception as e:
-                st.error(f"❌ Error en JSON gcp_service_account: {e}")
-                st.stop()
-        else:
-            creds_info = dict(creds_raw)
 
     if creds_info:
         try:
-            # Asegurar que la clave privada tenga el formato PEM correcto
-            pk = creds_info.get("private_key", "")
-            creds_info["private_key"] = fix_pem_key(pk)
             return Credentials.from_service_account_info(creds_info, scopes=SCOPES)
         except Exception as e:
-            st.error(f"❌ Error de autenticación: {e}")
+            st.error(f"❌ Error final de autenticación: {e}")
             st.stop()
     else:
-        st.error("❌ No se encontraron credenciales. Configura los campos GCP_* en los Secrets de Streamlit.")
+        st.error("❌ No se encontraron credenciales en Streamlit Secrets.")
         st.stop()
 
 
