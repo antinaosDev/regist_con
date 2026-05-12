@@ -58,8 +58,14 @@ def get_creds():
     if "GCP_TYPE" in st.secrets:
         try:
             private_key = st.secrets["GCP_PRIVATE_KEY"]
-            # Normalizar saltos de línea de la clave privada
-            private_key = private_key.replace("\\n", "\n")
+            # Normalizar todos los posibles formatos de salto de línea PEM
+            private_key = private_key.replace("\\r\\n", "\n")  # literal \r\n
+            private_key = private_key.replace("\\n", "\n")     # literal \n -> real newline
+            private_key = private_key.replace("\r\n", "\n")    # Windows CRLF -> LF
+            private_key = private_key.replace("\r", "\n")      # Mac CR -> LF
+            # Asegurar newline final
+            if not private_key.endswith("\n"):
+                private_key = private_key + "\n"
             creds_info = {
                 "type": st.secrets["GCP_TYPE"],
                 "project_id": st.secrets["GCP_PROJECT_ID"],
@@ -101,8 +107,10 @@ def get_creds():
         try:
             # Asegurar que la clave privada tenga saltos de línea correctos
             pk = creds_info.get("private_key", "")
-            if "\\n" in pk:
-                creds_info["private_key"] = pk.replace("\\n", "\n")
+            pk = pk.replace("\\r\\n", "\n").replace("\\n", "\n").replace("\r\n", "\n").replace("\r", "\n")
+            if not pk.endswith("\n"):
+                pk = pk + "\n"
+            creds_info["private_key"] = pk
             return Credentials.from_service_account_info(creds_info, scopes=SCOPES)
         except Exception as e:
             st.error(f"❌ Error de autenticación: {e}")
