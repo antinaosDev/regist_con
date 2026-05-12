@@ -46,26 +46,39 @@ import re
 def fix_pem_key(key_str):
     """
     Reconstruye una clave privada PEM con exactamente 64 caracteres por línea.
-    Resuelve errores InvalidByte causados por líneas de longitud incorrecta.
+    Extrae solo el contenido Base64 puro para evitar errores de formato.
     """
     if not key_str:
         return key_str
-    # 1. Normalizar todos los tipos de saltos de línea
+    
+    # 1. Normalizar saltos de línea literales
     key_str = key_str.replace("\\r\\n", "\n").replace("\\n", "\n")
-    key_str = key_str.replace("\r\n", "\n").replace("\r", "\n").strip()
+    
+    # 2. Extraer solo el contenido entre cabeceras o ignorar metadatos
+    # Buscamos líneas que no sean cabeceras, comentarios ni estén vacías
+    lines = key_str.split("\n")
+    raw_content = ""
+    for line in lines:
+        l = line.strip()
+        if not l or "BEGIN" in l or "END" in l or l.startswith("#") or "=" in l[:5]:
+            continue
+        raw_content += l
 
+    # 3. Limpiar cualquier carácter que no sea Base64 (por si acaso)
+    # Base64: A-Z, a-z, 0-9, +, /, y el padding =
+    b64_only = "".join(re.findall(r'[A-Za-z0-9+/]+', raw_content))
+    
+    # 4. Añadir el padding '=' necesario al final si falta
+    # (Aunque en PEM suele venir incluido, lo aseguramos)
+    padding = len(b64_only) % 4
+    if padding > 0:
+        b64_only += "=" * (4 - padding)
+
+    # 5. Reenvolver en líneas de 64 caracteres
     HEADER = "-----BEGIN PRIVATE KEY-----"
     FOOTER = "-----END PRIVATE KEY-----"
-
-    # 2. Extraer SOLO el contenido base64 (sin cabecera/pie)
-    b64_content = ""
-    for line in key_str.split("\n"):
-        line = line.strip()
-        if line and line != HEADER and line != FOOTER:
-            b64_content += line  # acumula sin espacios
-
-    # 3. Reenvolver en líneas de exactamente 64 caracteres
-    chunks = [b64_content[i:i+64] for i in range(0, len(b64_content), 64)]
+    chunks = [b64_only[i:i+64] for i in range(0, len(b64_only), 64)]
+    
     return HEADER + "\n" + "\n".join(chunks) + "\n" + FOOTER + "\n"
 
 def get_creds():
