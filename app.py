@@ -546,8 +546,8 @@ with st.form("rescate_form"):
     st.markdown("---")
     st.markdown('<p class="seccion">ESTADO GESTIÓN</p>', unsafe_allow_html=True)
     estado_gestion = st.selectbox("Estado de la Gestión", key="estado_gestion",
-        options=["", "Pendiente", "En Proceso", "Resuelto", "Cerrado"],
-        help="Pendiente: requiere acciones adicionales. | En Proceso: gestión iniciada, aún sin resolver. | Resuelto: el problema de salud fue solucionado. | Cerrado: caso cerrado definitivamente (alta, egreso, fallecimiento).",
+        options=["", "Pendiente", "Llamado 1 realizado", "Llamado 2 realizado", "Cerrado", "Inubicable", "Derivar visita domiciliaria"],
+        help="Seleccione el estado actual de la gestión del caso según el protocolo de contacto.",
     )
 
     st.markdown("---")
