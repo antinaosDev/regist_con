@@ -358,7 +358,7 @@ with st.form("rescate_form"):
             help="Fecha en que se realizó el primer intento de llamado al paciente."
         )
     with col4:
-        hora_llamada1 = st.time_input("Hora Llamado 1", key="hora_llamada1",
+        hora_llamado1 = st.time_input("Hora Llamado 1", key="hora_llamado1",
             help="Hora exacta del primer llamado realizado.")
     with col5:
         fecha_llamado2 = st.date_input("Fecha Llamado 2", key="fecha_llamado2",
@@ -609,7 +609,7 @@ if submitted:
     
     row_data = [
         fmt(final_id), fmt(fecha_registro), fmt(motivo_contacto),
-        fmt(fecha_llamado1), fmt(hora_llamada1),
+        fmt(fecha_llamado1), fmt(hora_llamado1),
         fmt(fecha_llamado2), fmt(hora_llamada2),
         fmt(telefono_paciente), fmt(telefono_alternativo),
         fmt(paciente_inubicable), fmt(responsable_llamado), fmt(centro_salud),
@@ -637,7 +637,7 @@ if submitted:
         context = {
             "id_reg": fmt(final_id), "fecha_registro": fmt(fecha_registro),
             "motivo_contacto": fmt(motivo_contacto),
-            "fecha_llamado1": fmt(fecha_llamado1), "hora_llamada1": fmt(hora_llamada1),
+            "fecha_llamado1": fmt(fecha_llamado1), "hora_llamado1": fmt(hora_llamado1),
             "fecha_llamado2": fmt(fecha_llamado2), "hora_llamado2": fmt(hora_llamado2),
             "telefono_paciente": fmt(telefono_paciente),
             "telefono_alternativo": fmt(telefono_alternativo),
