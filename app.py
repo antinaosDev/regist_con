@@ -43,7 +43,33 @@ import re
 
 # --- CONFIGURACIÓN DE SEGURIDAD ---
 
+def fix_pem_key(key_str):
+    """
+    Reconstruye una clave privada PEM con exactamente 64 caracteres por línea.
+    Resuelve errores InvalidByte causados por líneas de longitud incorrecta.
+    """
+    if not key_str:
+        return key_str
+    # 1. Normalizar todos los tipos de saltos de línea
+    key_str = key_str.replace("\\r\\n", "\n").replace("\\n", "\n")
+    key_str = key_str.replace("\r\n", "\n").replace("\r", "\n").strip()
+
+    HEADER = "-----BEGIN PRIVATE KEY-----"
+    FOOTER = "-----END PRIVATE KEY-----"
+
+    # 2. Extraer SOLO el contenido base64 (sin cabecera/pie)
+    b64_content = ""
+    for line in key_str.split("\n"):
+        line = line.strip()
+        if line and line != HEADER and line != FOOTER:
+            b64_content += line  # acumula sin espacios
+
+    # 3. Reenvolver en líneas de exactamente 64 caracteres
+    chunks = [b64_content[i:i+64] for i in range(0, len(b64_content), 64)]
+    return HEADER + "\n" + "\n".join(chunks) + "\n" + FOOTER + "\n"
+
 def get_creds():
+
     """Obtiene credenciales GCP desde varias fuentes en orden de prioridad."""
     # 1. Archivo local (Desarrollo)
     if os.path.exists("google_credentials.json"):
@@ -57,15 +83,7 @@ def get_creds():
     # 2. Campos individuales en Secrets (GCP_TYPE, GCP_PROJECT_ID, etc.)
     if "GCP_TYPE" in st.secrets:
         try:
-            private_key = st.secrets["GCP_PRIVATE_KEY"]
-            # Normalizar todos los posibles formatos de salto de línea PEM
-            private_key = private_key.replace("\\r\\n", "\n")  # literal \r\n
-            private_key = private_key.replace("\\n", "\n")     # literal \n -> real newline
-            private_key = private_key.replace("\r\n", "\n")    # Windows CRLF -> LF
-            private_key = private_key.replace("\r", "\n")      # Mac CR -> LF
-            # Asegurar newline final
-            if not private_key.endswith("\n"):
-                private_key = private_key + "\n"
+            private_key = fix_pem_key(st.secrets["GCP_PRIVATE_KEY"])
             creds_info = {
                 "type": st.secrets["GCP_TYPE"],
                 "project_id": st.secrets["GCP_PROJECT_ID"],
@@ -105,12 +123,9 @@ def get_creds():
 
     if creds_info:
         try:
-            # Asegurar que la clave privada tenga saltos de línea correctos
+            # Asegurar que la clave privada tenga el formato PEM correcto
             pk = creds_info.get("private_key", "")
-            pk = pk.replace("\\r\\n", "\n").replace("\\n", "\n").replace("\r\n", "\n").replace("\r", "\n")
-            if not pk.endswith("\n"):
-                pk = pk + "\n"
-            creds_info["private_key"] = pk
+            creds_info["private_key"] = fix_pem_key(pk)
             return Credentials.from_service_account_info(creds_info, scopes=SCOPES)
         except Exception as e:
             st.error(f"❌ Error de autenticación: {e}")
