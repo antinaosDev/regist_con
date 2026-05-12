@@ -305,15 +305,28 @@ if st.button("🧪 Generar Datos de Prueba"):
     st.session_state.motivo_contacto_tipo = "Confirmación de Cita"
     st.session_state.estado_gestion = "Resuelto"
 
+# --- NOTA ORIENTATIVA GENERAL ---
+st.info("""
+**⚠️ NOTA IMPORTANTE:**
+Antes de realizar el llamado debe cerciorarse que el usuario no esté fallecido (registro civil), 
+que no haya sido operado o atendido recientemente (libro de pabellón – RUP - Listado de Procedimientos) 
+o atendido en otro establecimiento por un especialista (ficha clínica electrónica).
+""")
+
 
 with st.form("rescate_form"):
     col1, col2 = st.columns(2)
 
     with col1:
         st.markdown('<p class="seccion">IDENTIFICACIÓN</p>', unsafe_allow_html=True)
-        id_reg = st.text_input("ID del Registro", key="id_reg", placeholder="Ej: RUT-RUP-001 (identificador único del caso)",
-            help="Identificador interno del registro. Puede ser el RUT del paciente, número de RUP u otro código institucional."
+        rut_paciente_input = st.text_input("RUT del Paciente (Base para ID)", key="rut_paciente",
+            placeholder="Ej: 12.345.678-9",
+            help="RUT del paciente en formato con puntos y guión. Se usará para generar el ID automático."
         )
+        # ID automático basado en RUT
+        id_reg = f"REG-{rut_paciente_input.replace('.','').replace('-','')}" if rut_paciente_input else ""
+        st.text_input("ID del Registro (Automático)", value=id_reg, disabled=True, key="id_reg_auto")
+        
         fecha_registro = st.date_input("Fecha del Registro", key="fecha_registro", 
             help="Fecha en que se crea este registro de llamado telefónico."
         )
@@ -324,6 +337,11 @@ with st.form("rescate_form"):
             options=["", "Confirmación de Cita", "Gestión de LE"],
             help="CONFIRMACIÓN DE CITA: complete la 1ª hoja del protocolo. GESTIÓN DE LE: diríjase a la 2ª hoja (Lista de Espera).",
         )
+        if motivo_contacto_tipo == "Confirmación de Cita":
+            st.caption("☑ CONFIRMACIÓN DE CITA (Debe completar 1ª hoja)")
+        elif motivo_contacto_tipo == "Gestión de LE":
+            st.caption("☐ GESTIÓN DE LE (Debe ir a 2ª hoja)")
+            
         motivo_contacto = st.text_area("Descripción del Motivo", key="motivo_contacto",
             height=80,
             placeholder="Describa brevemente el motivo específico del llamado (Ej: confirmar hora de control, gestionar pendiente en lista de espera quirúrgica, etc.)",
@@ -333,6 +351,7 @@ with st.form("rescate_form"):
     st.markdown(
         '<p class="seccion">FECHA Y HORA DE LLAMADOS</p>', unsafe_allow_html=True
     )
+    st.caption("Ej: 12/05/2026 13:28 hrs")
     col3, col4, col5, col6 = st.columns(4)
     with col3:
         fecha_llamado1 = st.date_input("Fecha Llamado 1", key="fecha_llamado1",
@@ -351,6 +370,7 @@ with st.form("rescate_form"):
 
     st.markdown("---")
     st.markdown('<p class="seccion">TELEFONÍA</p>', unsafe_allow_html=True)
+    st.caption("NÚMEROS DE TELÉFONO: +56912345678 / +56987654321")
     col7, col8, col9 = st.columns(3)
     with col7:
         telefono_paciente = st.text_input("Teléfono Principal del Paciente", key="telefono_paciente",
@@ -366,15 +386,18 @@ with st.form("rescate_form"):
         paciente_inubicable = st.checkbox("☐ PACIENTE INUBICABLE", key="paciente_inubicable",
             help="Marcar si NO se logró contactar al paciente en ninguno de los números disponibles. ACCIÓN REQUERIDA: activar visita domiciliaria o envío de carta certificada.",
         )
+    if paciente_inubicable:
+        st.warning("Debe activar visita domiciliaria o carta certificada")
 
     col10, col11 = st.columns(2)
     with col10:
         responsable_llamado = st.text_input("Nombre del Responsable del Llamado", key="responsable_llamado",
-            placeholder="Ej: María Soto (funcionario/a que realizó el llamado)",
+            placeholder="Ej: Juan Pérez (funcionario/a que realizó el llamado)",
             help="Nombre completo del funcionario o funcionaria que realiza este llamado telefónico. Este nombre quedará registrado en el protocolo."
         )
     with col11:
-        pass
+        st.write(" ")
+        st.markdown(f"**MUY BUENOS DÍAS (TARDES), MI NOMBRE ES:** {responsable_llamado if responsable_llamado else '__________'}")
 
     st.markdown("---")
     st.markdown('<p class="seccion">CENTRO DE SALUD</p>', unsafe_allow_html=True)
@@ -392,10 +415,7 @@ with st.form("rescate_form"):
             help="Nombre y apellidos del paciente tal como aparece en su cédula de identidad y ficha clínica."
         )
     with col13:
-        rut_paciente = st.text_input("RUT del Paciente", key="rut_paciente",
-            placeholder="Ej: 12.345.678-9",
-            help="RUT del paciente en formato con puntos y guión."
-        )
+        st.text_input("RUT (Confirmado)", value=rut_paciente_input, disabled=True)
 
     col14, col15 = st.columns(2)
     with col14:
@@ -403,7 +423,8 @@ with st.form("rescate_form"):
             help="Marcar si la persona que contestó el teléfono indicó que sabe cómo localizar al paciente. En ese caso, registrar teléfono y dirección donde puede ubicársele."
         )
     with col15:
-        pass
+        if sabe_ubicar:
+            st.info("(SI QUIEN RESPONDE NO SABE): USTED SABE COMO UBICAR AL SEÑOR(A)")
 
     st.markdown("---")
     st.markdown('<p class="seccion">DIRECCIÓN</p>', unsafe_allow_html=True)
@@ -426,6 +447,7 @@ with st.form("rescate_form"):
 
     st.markdown("---")
     st.markdown('<p class="seccion">RECEPTOR</p>', unsafe_allow_html=True)
+    st.info("CON QUIEN HABLO YO? (DATOS DE RECEPTOR DEL LLAMADO)")
     col18, col19 = st.columns(2)
     with col18:
         nombre_receptor = st.text_input("Nombre Completo del Receptor", key="nombre_receptor",
@@ -439,7 +461,7 @@ with st.form("rescate_form"):
         )
 
     st.markdown("---")
-    st.markdown('<p class="seccion">ATENCIÓN</p>', unsafe_allow_html=True)
+    st.info("EL SEÑOR(A) SE ENCUENTRA EN ESPERA DE UNA HORA DE: (Elegir opción de acuerdo a lista de espera de contacto)")
     col20, col21, col22 = st.columns(3)
     with col20:
         tipo_espera = st.selectbox("Tipo de Lista de Espera", key="tipo_espera",
@@ -462,6 +484,7 @@ with st.form("rescate_form"):
 
     st.markdown("---")
     st.markdown('<p class="seccion">ESTADO</p>', unsafe_allow_html=True)
+    st.info("¿YA ESTÁ RESUELTO SU PROBLEMA DE SALUD? Ó ¿SABE USTED SI YA SE ATENDIO? (Debe sistematizar la respuesta del contacto con alguna de las opciones más abajo disponibles.)")
     col23, col24, col25 = st.columns(3)
     with col23:
         problema_resuelto = st.checkbox("¿El problema de salud ya está resuelto?", key="problema_resuelto",
@@ -478,6 +501,7 @@ with st.form("rescate_form"):
 
     st.markdown("---")
     st.markdown('<p class="seccion">CAUSAL EGRESO</p>', unsafe_allow_html=True)
+    st.warning("EN CASO DE APLICAR ALGUNA CAUSAL DE EGRESO SEÑALAR SEGÚN CORRESPONDA:")
     col26, col27 = st.columns(2)
     with col26:
         causal_egreso = st.selectbox("Causal de Egreso de Lista de Espera", key="causal_egreso",
@@ -580,16 +604,16 @@ with st.form("rescate_form"):
         pass
 
 if submitted:
-    # Si el ID está vacío, usar el RUT como código único
-    final_id = id_reg if id_reg.strip() else rut_paciente
+    # El ID ahora es automático basado en el RUT
+    final_id = f"REG-{rut_paciente_input.replace('.','').replace('-','')}" if rut_paciente_input else "S-ID"
     
     row_data = [
         fmt(final_id), fmt(fecha_registro), fmt(motivo_contacto),
         fmt(fecha_llamado1), fmt(hora_llamada1),
-        fmt(fecha_llamado2), fmt(hora_llamado2),
+        fmt(fecha_llamado2), fmt(hora_llamada2),
         fmt(telefono_paciente), fmt(telefono_alternativo),
         fmt(paciente_inubicable), fmt(responsable_llamado), fmt(centro_salud),
-        fmt(nombre_paciente), fmt(rut_paciente), fmt(sabe_ubicar),
+        fmt(nombre_paciente), fmt(rut_paciente_input), fmt(sabe_ubicar),
         fmt(direccion), fmt(nombre_contacto), fmt(nombre_receptor),
         fmt(relacion_paciente), fmt(tipo_espera), fmt(policlinico),
         fmt(diagnostico), fmt(problema_resuelto), fmt(ya_atendido),
@@ -620,7 +644,7 @@ if submitted:
             "chk_inubicable": chk(paciente_inubicable),
             "responsable_llamado": fmt(responsable_llamado),
             "centro_salud": fmt(centro_salud),
-            "nombre_paciente": fmt(nombre_paciente), "rut_paciente": fmt(rut_paciente),
+            "nombre_paciente": fmt(nombre_paciente), "rut_paciente": fmt(rut_paciente_input),
             "chk_sabe_ubicar": chk(sabe_ubicar), "direccion": fmt(direccion),
             "nombre_contacto": fmt(nombre_contacto), "nombre_receptor": fmt(nombre_receptor),
             "relacion_paciente": fmt(relacion_paciente),
@@ -653,8 +677,8 @@ if submitted:
             "estado_gestion": fmt(estado_gestion),
         }
 
-        safe_rut = fmt(rut_paciente).replace(".", "").replace("-", "") or "s_rut"
-        safe_id  = fmt(final_id).replace(".", "").replace("-", "") or "s_id"
+        safe_rut = fmt(rut_paciente_input).replace(".", "").replace("-", "") or "s_rut"
+        safe_id  = fmt(final_id).replace(".", "").replace("-", "") or "id_gen"
 
         with st.spinner("Generando Documento..."):
             docx_bytes, err = generate_document(context, safe_rut, safe_id)
